@@ -1,6 +1,6 @@
 import initSync, { World, Direction } from "snake_game";
 
-initSync().then((_) => {
+initSync().then((wasm) => {
 	const CELL_SIZE = 10; // px
 	const WORLD_WIDTH = 8;
 	const SNAKE_SPAWN_IDX = Date.now() % (WORLD_WIDTH * WORLD_WIDTH);
@@ -13,6 +13,18 @@ initSync().then((_) => {
 	const ctx = canvas.getContext("2d");
 	canvas.height = worldWitdh * CELL_SIZE;
 	canvas.width = worldWitdh * CELL_SIZE;
+
+	const snakeCellPtr = world.snake_cells(); // É um numero, um endereco de memoria
+	const skaneLen = world.snake_len();
+
+	//? Isso é literalemnte, acessar um espaco de memoria, que esta representado pelos valores snakeCellPtr e skaneLen, onde o primeiro indica o inicio e o segundo o fim
+	//? E a memoria fisica esta no wasm.memory.buffer
+	const snakeCells = new Uint32Array(
+		wasm.memory.buffer,
+		snakeCellPtr,
+		skaneLen
+	);
+
 
 	document.addEventListener("keydown", (e) => {
 		switch (e.code) {
@@ -50,16 +62,24 @@ initSync().then((_) => {
 	}
 
 	function drawSnake() {
-		const snakeIdx = world.snake_head();
+		const snakeCells = new Uint32Array(
+			wasm.memory.buffer,
+			world.snake_cells(),
+			world.snake_len(),
+		);
 
-		const col = snakeIdx % worldWitdh;
-		const row = Math.floor(snakeIdx / worldWitdh);
+		snakeCells.forEach((cellIdx, idx) => {
+			const col = cellIdx % worldWitdh;
+			const row = Math.floor(cellIdx / worldWitdh);
 
-		ctx.beginPath();
+			ctx.fillStyle = idx === 0 ? "#7878db" : "#000000";
 
-		ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+			ctx.beginPath();
 
-		ctx.stroke();
+			ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+
+			ctx.stroke();
+		});
 	}
 
 	function paint() {

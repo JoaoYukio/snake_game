@@ -12,7 +12,7 @@ pub enum Direction {
     Left,
 }
 
-struct SnakeCell(usize);
+pub struct SnakeCell(usize);
 
 struct Snake {
     body: Vec<SnakeCell>,
@@ -20,9 +20,15 @@ struct Snake {
 }
 
 impl Snake {
-    fn new(spawn_index: usize) -> Snake {
+    fn new(spawn_index: usize, size: usize) -> Snake {
+        let mut body = vec![];
+
+        for i in 0..size {
+            body.push(SnakeCell(spawn_index - i));
+        }
+
         return Snake {
-            body: vec![SnakeCell(spawn_index)],
+            body: body,
             direction: Direction::Right,
         };
     }
@@ -38,12 +44,12 @@ impl World {
     pub fn new(width: usize, snake_idx: usize) -> World {
         return World {
             width: width,
-            snake: Snake::new(snake_idx),
+            snake: Snake::new(snake_idx, 3),
         };
     }
 
     pub fn width(&self) -> usize {
-        return self.width;
+        return self.width; // Esses valores podem ser retornados diretamente pois são criados na stack
     }
 
     pub fn snake_head(&self) -> usize {
@@ -53,6 +59,20 @@ impl World {
     pub fn change_snake_dir(&mut self, direction: Direction) {
         self.snake.direction = direction;
     }
+
+    pub fn snake_len(&self) -> usize {
+        return self.snake.body.len();
+    }
+
+    // * é um ponteiro puro, ou seja, ele não é gerenciado pelo Rust desta forma as regras de borrow checker não se aplicam
+    pub fn snake_cells(&self) -> *const SnakeCell {
+        return self.snake.body.as_ptr();
+    }
+
+    // Nao consigo retornar o objeto, pois ele vai ser destruido quando a funcao acabar
+    // pub fn snake_cells(&self) -> Vec<SnakeCell> {
+    //     return self.snake.body;
+    // }
 
     pub fn update(&mut self) {
         let snake_idx: usize = self.snake_head();
@@ -85,6 +105,24 @@ impl World {
         //     let next_row = (row + 1) % self.width;
         //     self.snake.body[0].0 = (next_row * self.width) + col;
         // }
+    }
+
+    fn gen_next_snake_cell(&self) -> SnakeCell {
+        let snake_idx: usize = self.snake_head();
+        let row = snake_idx / self.width;
+
+        let size = self.width * self.width;
+
+        // 5:17 video
+
+        return match self.snake.direction {
+            Direction::Right => {
+                return SnakeCell((row * self.width) + (snake_idx + 1) % self.width)
+            }
+            Direction::Left => return SnakeCell((row * self.width) + (snake_idx - 1) % self.width),
+            Direction::Up => return SnakeCell((snake_idx - self.width) % size),
+            Direction::Down => return SnakeCell((snake_idx + self.width) % size),
+        };
     }
 
     fn set_snake_head(&mut self, idx: usize) {
