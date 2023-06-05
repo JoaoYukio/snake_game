@@ -25,7 +25,6 @@ initSync().then((wasm) => {
 		skaneLen
 	);
 
-
 	document.addEventListener("keydown", (e) => {
 		switch (e.code) {
 			case "ArrowUp":
@@ -65,7 +64,7 @@ initSync().then((wasm) => {
 		const snakeCells = new Uint32Array(
 			wasm.memory.buffer,
 			world.snake_cells(),
-			world.snake_len(),
+			world.snake_len()
 		);
 
 		snakeCells.forEach((cellIdx, idx) => {
@@ -76,7 +75,12 @@ initSync().then((wasm) => {
 
 			ctx.beginPath();
 
-			ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+			ctx.fillRect(
+				col * CELL_SIZE,
+				row * CELL_SIZE,
+				CELL_SIZE,
+				CELL_SIZE
+			);
 
 			ctx.stroke();
 		});
