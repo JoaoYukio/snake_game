@@ -49,16 +49,9 @@ pub struct World {
 #[wasm_bindgen]
 impl World {
     pub fn new(width: usize, snake_idx: usize) -> World {
-        let mut reward_cell;
         let snake = Snake::new(snake_idx, 3);
 
-        loop {
-            // loop infinito
-            reward_cell = random(width * width);
-            if !snake.body.contains(&SnakeCell(reward_cell)) {
-                break;
-            }
-        }
+        let reward_cell = World::gen_reward_cell(width, &snake.body);
 
         return World {
             width,
@@ -66,6 +59,23 @@ impl World {
             next_cell: None,
             reward_cell,
         };
+    }
+
+    fn gen_reward_cell(width: usize, snake_body: &Vec<SnakeCell>) -> usize {
+        let mut reward_cell;
+
+        loop {
+            // loop infinito
+            reward_cell = random(width * width);
+            // if !self.snake.body.contains(&SnakeCell(reward_cell)) {
+            //     break;
+            // }
+            if !snake_body.contains(&SnakeCell(reward_cell)) {
+                break;
+            }
+        }
+
+        return reward_cell;
     }
 
     pub fn width(&self) -> usize {
@@ -133,7 +143,14 @@ impl World {
 
         // Aqui aparentemente nao import porque quando rodar o for em cima vai pegar o proximo valor e vai sobrescrever
         if self.reward_cell == self.snake_head() {
-            self.snake.body.push(SnakeCell(self.snake.body[1].0))
+            if (self.snake_len() < self.width * self.width) {
+                self.reward_cell = World::gen_reward_cell(self.width, &self.snake.body);
+            }
+            {
+                // Tamanho da cobra é maior que o jogo, logo nao temos lugar para ter a reward
+            }
+
+            self.snake.body.push(SnakeCell(self.snake.body[1].0));
         }
 
         // let snake_idx: usize = self.snake_head();
