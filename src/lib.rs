@@ -131,7 +131,7 @@ impl World {
             self.snake.body[i] = SnakeCell(temp[i - 1].0);
         }
 
-        // Tentar entender melhor com chat gpt
+        // Aqui aparentemente nao import porque quando rodar o for em cima vai pegar o proximo valor e vai sobrescrever
         if self.reward_cell == self.snake_head() {
             self.snake.body.push(SnakeCell(self.snake.body[1].0))
         }
