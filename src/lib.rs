@@ -16,7 +16,7 @@ pub enum Direction {
     Down,
     Left,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct SnakeCell(usize);
 
 struct Snake {
@@ -49,11 +49,20 @@ pub struct World {
 #[wasm_bindgen]
 impl World {
     pub fn new(width: usize, snake_idx: usize) -> World {
-        let reward_cell = random(width * width);
+        let mut reward_cell;
+        let snake = Snake::new(snake_idx, 3);
+
+        loop {
+            // loop infinito
+            reward_cell = random(width * width);
+            if !snake.body.contains(&SnakeCell(reward_cell)) {
+                break;
+            }
+        }
 
         return World {
-            width: width,
-            snake: Snake::new(snake_idx, 3),
+            width,
+            snake,
             next_cell: None,
             reward_cell,
         };
@@ -120,6 +129,11 @@ impl World {
             // comeca em 1 pois ja atualizamos o 0 em self.snake.body[0] = next_cell;
             // e tambem porque estamos pegando i-1, e para i = 0  teriamos -1
             self.snake.body[i] = SnakeCell(temp[i - 1].0);
+        }
+
+        // Tentar entender melhor com chat gpt
+        if self.reward_cell == self.snake_head() {
+            self.snake.body.push(SnakeCell(self.snake.body[1].0))
         }
 
         // let snake_idx: usize = self.snake_head();
