@@ -3,6 +3,11 @@ use wasm_bindgen::prelude::*;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
+#[wasm_bindgen(module = "/www/utils/random.js")]
+extern "C" {
+    fn random(max: usize) -> usize;
+}
+
 #[wasm_bindgen]
 #[derive(PartialEq)]
 pub enum Direction {
@@ -11,7 +16,7 @@ pub enum Direction {
     Down,
     Left,
 }
-
+#[derive(Clone, Copy)]
 pub struct SnakeCell(usize);
 
 struct Snake {
@@ -38,13 +43,19 @@ impl Snake {
 pub struct World {
     width: usize,
     snake: Snake,
+    next_cell: Option<SnakeCell>,
+    reward_cell: usize,
 }
 #[wasm_bindgen]
 impl World {
     pub fn new(width: usize, snake_idx: usize) -> World {
+        let reward_cell = random(width * width);
+
         return World {
             width: width,
             snake: Snake::new(snake_idx, 3),
+            next_cell: None,
+            reward_cell,
         };
     }
 
@@ -52,11 +63,22 @@ impl World {
         return self.width; // Esses valores podem ser retornados diretamente pois são criados na stack
     }
 
+    pub fn reward_cell(&self) -> usize {
+        self.reward_cell
+    }
+
     pub fn snake_head(&self) -> usize {
         return self.snake.body[0].0; // Pega o primeiro elemento de SnakeCell, ou seja, o unico que tem
     }
 
     pub fn change_snake_dir(&mut self, direction: Direction) {
+        let next_cell = self.gen_next_snake_cell(&direction);
+
+        if self.snake.body[1].0 == next_cell.0 {
+            return; // Caso ele queira mudar da esquerda para direita imediantamente, ou de cima para baixo
+        }
+
+        self.next_cell = Option::Some(next_cell);
         self.snake.direction = direction;
     }
 
@@ -75,8 +97,31 @@ impl World {
     // }
 
     pub fn update(&mut self) {
-        let next_cell = self.gen_next_snake_cell();
+        let temp = self.snake.body.clone();
+
+        // Estava dando um bug onde quando eu apertava varias vezes a mesma tecla a cobra ficava com os pedacos espaçados
+        // match self.next_cell {
+        //     Some(cell) => {
+        //         self.snake.body[0] = cell;
+        //         self.next_cell = None;
+        //         return;
+        //     }
+        //     None => {
+        //         self.snake.body[0] = self.gen_next_snake_cell(&self.snake.direction);
+        //     }
+        // }
+
+        let next_cell = self.gen_next_snake_cell(&self.snake.direction);
         self.snake.body[0] = next_cell;
+
+        let len = self.snake.body.len();
+
+        for i in 1..len {
+            // comeca em 1 pois ja atualizamos o 0 em self.snake.body[0] = next_cell;
+            // e tambem porque estamos pegando i-1, e para i = 0  teriamos -1
+            self.snake.body[i] = SnakeCell(temp[i - 1].0);
+        }
+
         // let snake_idx: usize = self.snake_head();
         // // let row = snake_idx / self.width;
         // // let col = snake_idx % self.width;
@@ -109,12 +154,12 @@ impl World {
         // }
     }
 
-    fn gen_next_snake_cell(&self) -> SnakeCell {
+    fn gen_next_snake_cell(&self, direction: &Direction) -> SnakeCell {
         let snake_idx: usize = self.snake_head();
         let row = snake_idx / self.width;
         let size = self.width * self.width;
 
-        return match self.snake.direction {
+        return match direction {
             Direction::Right => {
                 // Forma sem usar % que usa divisão e é mais 'Caro'
                 let limite = (row + 1) * self.width;

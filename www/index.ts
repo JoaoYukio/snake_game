@@ -2,7 +2,7 @@ import initSync, { World, Direction } from "snake_game";
 
 initSync().then((wasm) => {
 	const CELL_SIZE = 10; // px
-	const WORLD_WIDTH = 8;
+	const WORLD_WIDTH = 16;
 	const SNAKE_SPAWN_IDX = Date.now() % (WORLD_WIDTH * WORLD_WIDTH);
 
 	const world = World.new(WORLD_WIDTH, SNAKE_SPAWN_IDX);
@@ -60,6 +60,21 @@ initSync().then((wasm) => {
 		ctx.stroke();
 	}
 
+	function drawReward() {
+		const idx = world.reward_cell();
+
+		const col = idx % worldWitdh;
+
+		const row = Math.floor(idx / worldWitdh);
+
+		ctx.beginPath();
+
+		ctx.fillStyle = "#FF0000";
+		ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+
+		ctx.stroke();
+	}
+
 	function drawSnake() {
 		const snakeCells = new Uint32Array(
 			wasm.memory.buffer,
@@ -89,6 +104,7 @@ initSync().then((wasm) => {
 	function paint() {
 		drawWorld();
 		drawSnake();
+		drawReward();
 	}
 	function update() {
 		const fps = 10;
