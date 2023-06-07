@@ -2,17 +2,32 @@ import initSync, { World, Direction } from "snake_game";
 
 initSync().then((wasm) => {
 	const CELL_SIZE = 10; // px
-	const WORLD_WIDTH = 16;
+	const WORLD_WIDTH = 4;
 	const SNAKE_SPAWN_IDX = Date.now() % (WORLD_WIDTH * WORLD_WIDTH);
 
 	const world = World.new(WORLD_WIDTH, SNAKE_SPAWN_IDX);
 
 	const worldWitdh = world.width();
+
+	const gameControlBtn = document.getElementById("game-control-btn");
+	const gameStatus = document.getElementById("game-status");
+
 	const canvas = <HTMLCanvasElement>document.getElementById("snake-canvas");
 
 	const ctx = canvas.getContext("2d");
 	canvas.height = worldWitdh * CELL_SIZE;
 	canvas.width = worldWitdh * CELL_SIZE;
+
+	gameControlBtn.addEventListener("click", (_) => {
+		const status = world.game_status();
+
+		if (status === undefined) {
+			world.start_game();
+			play();
+		} else {
+			location.reload();
+		}
+	});
 
 	const snakeCellPtr = world.snake_cells(); // É um numero, um endereco de memoria
 	const skaneLen = world.snake_len();
@@ -101,12 +116,17 @@ initSync().then((wasm) => {
 		});
 	}
 
+	function drawGameStatus() {
+		gameStatus.textContent = world.game_status_text();
+	}
+
 	function paint() {
 		drawWorld();
 		drawSnake();
 		drawReward();
+		drawGameStatus();
 	}
-	function update() {
+	function play() {
 		const fps = 10;
 		setTimeout(() => {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -114,9 +134,8 @@ initSync().then((wasm) => {
 			paint();
 
 			world.update();
-			requestAnimationFrame(update);
+			requestAnimationFrame(play);
 		}, 1000 / fps);
 	}
 	paint();
-	update();
 });

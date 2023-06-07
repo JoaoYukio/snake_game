@@ -16,6 +16,15 @@ pub enum Direction {
     Down,
     Left,
 }
+
+#[wasm_bindgen]
+#[derive(Clone, Copy)]
+pub enum GameStatus {
+    Won,
+    Lost,
+    Played,
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub struct SnakeCell(usize);
 
@@ -45,6 +54,7 @@ pub struct World {
     snake: Snake,
     next_cell: Option<SnakeCell>,
     reward_cell: usize,
+    status: Option<GameStatus>,
 }
 #[wasm_bindgen]
 impl World {
@@ -58,6 +68,7 @@ impl World {
             snake,
             next_cell: None,
             reward_cell,
+            status: None,
         };
     }
 
@@ -90,6 +101,23 @@ impl World {
         return self.snake.body[0].0; // Pega o primeiro elemento de SnakeCell, ou seja, o unico que tem
     }
 
+    pub fn start_game(&mut self) {
+        self.status = Some(GameStatus::Played);
+    }
+
+    pub fn game_status(&self) -> Option<GameStatus> {
+        return self.status;
+    }
+
+    pub fn game_status_text(&self) -> String {
+        match self.status {
+            Some(GameStatus::Won) => String::from("Ganhou!"),
+            Some(GameStatus::Lost) => String::from("Perdeu"),
+            Some(GameStatus::Played) => String::from("Jogando"),
+            None => String::from("Nenhum estado"),
+        }
+    }
+
     pub fn change_snake_dir(&mut self, direction: Direction) {
         let next_cell = self.gen_next_snake_cell(&direction);
 
@@ -116,73 +144,82 @@ impl World {
     // }
 
     pub fn update(&mut self) {
-        let temp = self.snake.body.clone();
+        match self.status {
+            Some(GameStatus::Played) => {
+                let temp = self.snake.body.clone();
 
-        // Estava dando um bug onde quando eu apertava varias vezes a mesma tecla a cobra ficava com os pedacos espaçados
-        // match self.next_cell {
-        //     Some(cell) => {
-        //         self.snake.body[0] = cell;
-        //         self.next_cell = None;
-        //         return;
-        //     }
-        //     None => {
-        //         self.snake.body[0] = self.gen_next_snake_cell(&self.snake.direction);
-        //     }
-        // }
+                // Estava dando um bug onde quando eu apertava varias vezes a mesma tecla a cobra ficava com os pedacos espaçados
+                // match self.next_cell {
+                //     Some(cell) => {
+                //         self.snake.body[0] = cell;
+                //         self.next_cell = None;
+                //         return;
+                //     }
+                //     None => {
+                //         self.snake.body[0] = self.gen_next_snake_cell(&self.snake.direction);
+                //     }
+                // }
 
-        let next_cell = self.gen_next_snake_cell(&self.snake.direction);
-        self.snake.body[0] = next_cell;
+                let next_cell = self.gen_next_snake_cell(&self.snake.direction);
+                self.snake.body[0] = next_cell;
 
-        let len = self.snake.body.len();
+                let len = self.snake.body.len();
 
-        for i in 1..len {
-            // comeca em 1 pois ja atualizamos o 0 em self.snake.body[0] = next_cell;
-            // e tambem porque estamos pegando i-1, e para i = 0  teriamos -1
-            self.snake.body[i] = SnakeCell(temp[i - 1].0);
-        }
+                for i in 1..len {
+                    // comeca em 1 pois ja atualizamos o 0 em self.snake.body[0] = next_cell;
+                    // e tambem porque estamos pegando i-1, e para i = 0  teriamos -1
+                    self.snake.body[i] = SnakeCell(temp[i - 1].0);
+                }
 
-        // Aqui aparentemente nao import porque quando rodar o for em cima vai pegar o proximo valor e vai sobrescrever
-        if self.reward_cell == self.snake_head() {
-            if (self.snake_len() < self.width * self.width) {
-                self.reward_cell = World::gen_reward_cell(self.width, &self.snake.body);
+                if self.snake.body[1..self.snake_len()].contains(&self.snake.body[0]) {
+                    self.status = Some(GameStatus::Lost);
+                }
+
+                // Aqui aparentemente nao import porque quando rodar o for em cima vai pegar o proximo valor e vai sobrescrever
+                if self.reward_cell == self.snake_head() {
+                    if self.snake_len() < self.width * self.width {
+                        self.reward_cell = World::gen_reward_cell(self.width, &self.snake.body);
+                    } else {
+                        // Tamanho da cobra é maior que o jogo, logo nao temos lugar para ter a reward
+                        self.status = Some(GameStatus::Won);
+                    }
+
+                    self.snake.body.push(SnakeCell(self.snake.body[1].0));
+                }
+
+                // let snake_idx: usize = self.snake_head();
+                // // let row = snake_idx / self.width;
+                // // let col = snake_idx % self.width;
+
+                // let (row, col) = self.index_to_cell(snake_idx);
+
+                // let (row, col) = match self.snake.direction {
+                //     Direction::Right => (row, (col + 1) % self.width),
+                //     Direction::Left => (row, (col - 1) % self.width),
+                //     Direction::Up => ((row - 1) % self.width, col),
+                //     Direction::Down => ((row + 1) % self.width, col),
+                // };
+
+                // let next_idx = self.cell_to_index(row, col);
+                // self.set_snake_head(next_idx);
+
+                // if self.snake.direction == Direction::Right {
+                //     let next_col = (snake_idx + 1) % self.width;
+                //     self.snake.body[0].0 = (row * self.width) + next_col;
+                //     //? Mesma coisa que self.snake.body[0].0 = self.snake.body[0].0 + 1 % ...
+                // } else if self.snake.direction == Direction::Left {
+                //     self.snake.body[0].0 = (snake_idx - 1) % (self.width * self.width);
+                // } else if self.snake.direction == Direction::Up {
+                //     let next_row = (row - 1) % self.width;
+                //     self.snake.body[0].0 = (next_row * self.width) + col;
+                // } else {
+                //     // Down
+                //     let next_row = (row + 1) % self.width;
+                //     self.snake.body[0].0 = (next_row * self.width) + col;
+                // }
             }
-            {
-                // Tamanho da cobra é maior que o jogo, logo nao temos lugar para ter a reward
-            }
-
-            self.snake.body.push(SnakeCell(self.snake.body[1].0));
+            _ => {}
         }
-
-        // let snake_idx: usize = self.snake_head();
-        // // let row = snake_idx / self.width;
-        // // let col = snake_idx % self.width;
-
-        // let (row, col) = self.index_to_cell(snake_idx);
-
-        // let (row, col) = match self.snake.direction {
-        //     Direction::Right => (row, (col + 1) % self.width),
-        //     Direction::Left => (row, (col - 1) % self.width),
-        //     Direction::Up => ((row - 1) % self.width, col),
-        //     Direction::Down => ((row + 1) % self.width, col),
-        // };
-
-        // let next_idx = self.cell_to_index(row, col);
-        // self.set_snake_head(next_idx);
-
-        // if self.snake.direction == Direction::Right {
-        //     let next_col = (snake_idx + 1) % self.width;
-        //     self.snake.body[0].0 = (row * self.width) + next_col;
-        //     //? Mesma coisa que self.snake.body[0].0 = self.snake.body[0].0 + 1 % ...
-        // } else if self.snake.direction == Direction::Left {
-        //     self.snake.body[0].0 = (snake_idx - 1) % (self.width * self.width);
-        // } else if self.snake.direction == Direction::Up {
-        //     let next_row = (row - 1) % self.width;
-        //     self.snake.body[0].0 = (next_row * self.width) + col;
-        // } else {
-        //     // Down
-        //     let next_row = (row + 1) % self.width;
-        //     self.snake.body[0].0 = (next_row * self.width) + col;
-        // }
     }
 
     fn gen_next_snake_cell(&self, direction: &Direction) -> SnakeCell {
