@@ -1,8 +1,8 @@
-import initSync, { World, Direction } from "snake_game";
+import initSync, { World, Direction, GameStatus } from "snake_game";
 
 initSync().then((wasm) => {
 	const CELL_SIZE = 10; // px
-	const WORLD_WIDTH = 4;
+	const WORLD_WIDTH = 16;
 	const SNAKE_SPAWN_IDX = Date.now() % (WORLD_WIDTH * WORLD_WIDTH);
 
 	const world = World.new(WORLD_WIDTH, SNAKE_SPAWN_IDX);
@@ -11,6 +11,7 @@ initSync().then((wasm) => {
 
 	const gameControlBtn = document.getElementById("game-control-btn");
 	const gameStatus = document.getElementById("game-status");
+	const points = document.getElementById("points");
 
 	const canvas = <HTMLCanvasElement>document.getElementById("snake-canvas");
 
@@ -97,27 +98,39 @@ initSync().then((wasm) => {
 			world.snake_len()
 		);
 
-		snakeCells.forEach((cellIdx, idx) => {
-			const col = cellIdx % worldWitdh;
-			const row = Math.floor(cellIdx / worldWitdh);
+		snakeCells
+			.slice() // Cria uma copia
+			// .filter((cellIdx, idx) => !(idx > 0 && cellIdx === snakeCells[0]))
+			.reverse() // inverte o array para desenhar a cabeça por ultimo
+			.forEach((cellIdx, idx) => {
+				const col = cellIdx % worldWitdh;
+				const row = Math.floor(cellIdx / worldWitdh);
 
-			ctx.fillStyle = idx === 0 ? "#7878db" : "#000000";
+				// ctx.fillStyle = idx === 0 ? "#7878db" : "#000000";
+				ctx.fillStyle =
+					idx === snakeCells.length - 1 ? "#7878db" : "#000000"; // Mudou pois estamos invertendo o array
 
-			ctx.beginPath();
+				ctx.beginPath();
 
-			ctx.fillRect(
-				col * CELL_SIZE,
-				row * CELL_SIZE,
-				CELL_SIZE,
-				CELL_SIZE
-			);
+				ctx.fillRect(
+					col * CELL_SIZE,
+					row * CELL_SIZE,
+					CELL_SIZE,
+					CELL_SIZE
+				);
 
-			ctx.stroke();
-		});
+				ctx.stroke();
+			});
 	}
 
 	function drawGameStatus() {
+		const status = world.game_status();
 		gameStatus.textContent = world.game_status_text();
+		points.textContent = world.points().toString();
+
+		if (status == GameStatus.Won || status == GameStatus.Lost) {
+			gameControlBtn.textContent = "Re-Play";
+		}
 	}
 
 	function paint() {
@@ -128,6 +141,13 @@ initSync().then((wasm) => {
 	}
 	function play() {
 		const fps = 10;
+		const status = world.game_status();
+
+		if (status == GameStatus.Won || status == GameStatus.Lost) {
+			gameControlBtn.textContent = "Re-Play";
+			return; // Sai do jogo caso tenha parado
+		}
+
 		setTimeout(() => {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 

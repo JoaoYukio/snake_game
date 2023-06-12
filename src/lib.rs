@@ -53,8 +53,9 @@ pub struct World {
     width: usize,
     snake: Snake,
     next_cell: Option<SnakeCell>,
-    reward_cell: usize,
+    reward_cell: Option<usize>,
     status: Option<GameStatus>,
+    points: usize,
 }
 #[wasm_bindgen]
 impl World {
@@ -69,10 +70,11 @@ impl World {
             next_cell: None,
             reward_cell,
             status: None,
+            points: 0,
         };
     }
 
-    fn gen_reward_cell(width: usize, snake_body: &Vec<SnakeCell>) -> usize {
+    fn gen_reward_cell(width: usize, snake_body: &Vec<SnakeCell>) -> Option<usize> {
         let mut reward_cell;
 
         loop {
@@ -86,14 +88,18 @@ impl World {
             }
         }
 
-        return reward_cell;
+        return Some(reward_cell);
     }
 
     pub fn width(&self) -> usize {
         return self.width; // Esses valores podem ser retornados diretamente pois são criados na stack
     }
 
-    pub fn reward_cell(&self) -> usize {
+    pub fn points(&self) -> usize {
+        self.points
+    }
+
+    pub fn reward_cell(&self) -> Option<usize> {
         self.reward_cell
     }
 
@@ -176,11 +182,13 @@ impl World {
                 }
 
                 // Aqui aparentemente nao import porque quando rodar o for em cima vai pegar o proximo valor e vai sobrescrever
-                if self.reward_cell == self.snake_head() {
+                if self.reward_cell == Some(self.snake_head()) {
                     if self.snake_len() < self.width * self.width {
+                        self.points += 1;
                         self.reward_cell = World::gen_reward_cell(self.width, &self.snake.body);
                     } else {
                         // Tamanho da cobra é maior que o jogo, logo nao temos lugar para ter a reward
+                        self.reward_cell = None;
                         self.status = Some(GameStatus::Won);
                     }
 
@@ -226,20 +234,44 @@ impl World {
         let snake_idx: usize = self.snake_head();
         let row = snake_idx / self.width;
         let size = self.width * self.width;
-
+        //     Direction::Right => SnakeCell((row * self.width) + (snake_idx + 1) % self.width),
+        //     Direction::Left => SnakeCell((row * self.width) + (snake_idx - 1) % self.width),
+        //     Direction::Up => SnakeCell((snake_idx - self.width) % size),
+        //     Direction::Down => SnakeCell((snake_idx + self.width) % size),
+        // };
         return match direction {
             Direction::Right => {
-                // Forma sem usar % que usa divisão e é mais 'Caro'
-                let limite = (row + 1) * self.width;
-                if snake_idx + 1 == limite {
-                    return SnakeCell(limite - self.width);
+                let treshold = (row + 1) * self.width;
+                if snake_idx + 1 == treshold {
+                    SnakeCell(treshold - self.width)
                 } else {
-                    return SnakeCell(snake_idx + 1);
+                    SnakeCell(snake_idx + 1)
                 }
-            } //SnakeCell((row * self.width) + (snake_idx + 1) % self.width),
-            Direction::Left => SnakeCell((row * self.width) + (snake_idx - 1) % self.width),
-            Direction::Up => SnakeCell((snake_idx - self.width) % size),
-            Direction::Down => SnakeCell((snake_idx + self.width) % size),
+            }
+            Direction::Left => {
+                let treshold = row * self.width;
+                if snake_idx == treshold {
+                    SnakeCell(treshold + (self.width - 1))
+                } else {
+                    SnakeCell(snake_idx - 1)
+                }
+            }
+            Direction::Up => {
+                let treshold = snake_idx - (row * self.width);
+                if snake_idx == treshold {
+                    SnakeCell((size - self.width) + treshold)
+                } else {
+                    SnakeCell(snake_idx - self.width)
+                }
+            }
+            Direction::Down => {
+                let treshold = snake_idx + ((self.width - row) * self.width);
+                if snake_idx + self.width == treshold {
+                    SnakeCell(treshold - ((row + 1) * self.width))
+                } else {
+                    SnakeCell(snake_idx + self.width)
+                }
+            }
         };
     }
 
